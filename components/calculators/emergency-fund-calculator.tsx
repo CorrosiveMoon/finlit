@@ -195,7 +195,7 @@ export default function EmergencyFundCalculator({ currency }: EmergencyFundCalcu
                 <div className="p-4 bg-green-50 rounded-lg border border-green-200">
                   <h4 className="font-semibold text-green-800 mb-2">🎉 Congratulations!</h4>
                   <p className="text-green-700 text-sm">
-                    You've reached your emergency fund goal! You now have {targetMonths} months of expenses saved. 
+                    You&#39;ve reached your emergency fund goal! You now have {targetMonths} months of expenses saved. 
                     Consider maintaining this amount and directing future savings toward other financial goals like retirement or investments.
                   </p>
                 </div>
