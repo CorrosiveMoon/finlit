@@ -6,7 +6,11 @@ WORKDIR /app
 
 # Install dependencies only when needed
 COPY package.json package-lock.json* ./
-RUN npm ci --only=production && \
+RUN if [ -f package-lock.json ]; then \
+      npm ci --omit=dev; \
+    else \
+      npm install --production; \
+    fi && \
     npm cache clean --force
 
 # Stage 2: Builder
@@ -18,7 +22,11 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY package.json package-lock.json* ./
 
 # Install all dependencies (including dev) for build
-RUN npm ci
+RUN if [ -f package-lock.json ]; then \
+      npm ci; \
+    else \
+      npm install; \
+    fi
 
 # Copy source files
 COPY . .
