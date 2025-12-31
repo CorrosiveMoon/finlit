@@ -54,10 +54,15 @@ temp/
 *.tmp
 *.log
 
+# Test and development files
+test-mongodb.js
+changesmade.txt
+*.docx
+
 # Personal notes and images (project specific)
 "Financial Literacy notes.txt"
-*.PNG
-*.png
+# *.PNG
+# *.png
 *.jpg
 *.jpeg
 *.gif
