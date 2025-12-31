@@ -4,7 +4,7 @@ import dbConnect from '@/lib/mongodb'
 import { BudgetTemplateModel } from '@/lib/models'
 
 // GET all templates for a user
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const { userId: clerkUserId } = await auth()
     

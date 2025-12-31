@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import { useUserId } from '@/lib/hooks/useUserId'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { ArrowLeft } from 'lucide-react'
 import Link from 'next/link'
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
@@ -46,6 +45,7 @@ export default function BudgetOverview() {
   // Generate year options: current year + 4 future years
   const yearOptions = Array.from({ length: 5 }, (_, i) => currentYear + i)
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (userId) {
       fetchBudgets()
@@ -241,7 +241,8 @@ export default function BudgetOverview() {
                       cx="50%"
                       cy="50%"
                       labelLine={false}
-                      label={(entry: any) => `${entry.name}: ${(entry.percent * 100).toFixed(0)}%`}
+                      // @ts-expect-error - recharts label prop type mismatch
+                      label={(entry) => `${entry.name}: ${(entry.percent * 100).toFixed(0)}%`}
                       outerRadius={100}
                       fill="#8884d8"
                       dataKey="value"
@@ -356,7 +357,7 @@ export default function BudgetOverview() {
                     <li>• Your wants spending is high. Look for areas where you can cut back on discretionary expenses.</li>
                   )}
                   {avgSavingsPercent >= 20 && (
-                    <li>• Great job! You're meeting the recommended 20% savings rate. Keep it up! 🎉</li>
+                    <li>• Great job! You&apos;re meeting the recommended 20% savings rate. Keep it up! 🎉</li>
                   )}
                 </ul>
               </div>

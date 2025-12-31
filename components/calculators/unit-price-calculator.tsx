@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { useCurrency, CurrencySelect, CURRENCIES, type CurrencyCode } from '@/components/ui/currency-select'
+import { useCurrency, CurrencySelect, CURRENCIES } from '@/components/ui/currency-select'
 
 export default function UnitPriceCalculator() {
   const [product1, setProduct1] = useState({ price: '', size: '', name: '' })

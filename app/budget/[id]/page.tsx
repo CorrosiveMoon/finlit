@@ -1,15 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams } from 'next/navigation'
 import { useUserId } from '@/lib/hooks/useUserId'
-import { getRecurringTypeIcon, getRecurringTypeLabel } from '@/lib/utils'
 import { useCurrency, CurrencySelect, formatCurrency } from '@/components/ui/currency-select'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, Save, Plus, Trash2, RefreshCw } from 'lucide-react'
+import { ArrowLeft, Save, Plus, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 
 interface BudgetItem {
@@ -47,7 +46,6 @@ const MONTHS = [
 
 export default function MonthlyBudgetPage() {
   const params = useParams()
-  const router = useRouter()
   const userId = useUserId()
   const { currency, setCurrency, symbol } = useCurrency()
   const [budget, setBudget] = useState<MonthlyBudget | null>(null)
@@ -58,6 +56,7 @@ export default function MonthlyBudgetPage() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [initialLoad, setInitialLoad] = useState(true)
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (userId && params.id) {
       fetchBudget()
@@ -156,7 +155,7 @@ export default function MonthlyBudgetPage() {
     }
   }
 
-  const updateBudgetField = (field: keyof MonthlyBudget, value: any) => {
+  const updateBudgetField = (field: keyof MonthlyBudget, value: string | number | BudgetItem[]) => {
     if (!budget) return
     setBudget({ ...budget, [field]: value })
     setHasUnsavedChanges(true)
@@ -205,7 +204,7 @@ export default function MonthlyBudgetPage() {
     category: 'needsItems' | 'wantsItems' | 'savingsItems',
     index: number,
     field: keyof BudgetItem,
-    value: any
+    value: string | number | boolean
   ) => {
     if (!budget) return
     const items = [...budget[category]]

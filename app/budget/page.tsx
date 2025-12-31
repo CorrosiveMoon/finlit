@@ -10,6 +10,15 @@ import Link from 'next/link'
 import { Plus, Calendar, TrendingUp, DollarSign, Trash2 } from 'lucide-react'
 import { useCurrency, formatCurrency } from '@/components/ui/currency-select'
 
+interface BudgetItem {
+  name: string
+  amount: number
+  isRecurring?: boolean
+  frequency?: 'weekly' | 'bi-weekly' | 'monthly' | 'quarterly' | 'yearly'
+  recurringType?: 'subscription' | 'investment' | 'installment' | 'other'
+  provider?: string
+}
+
 interface MonthlyBudget {
   _id: string
   month: number
@@ -21,9 +30,9 @@ interface MonthlyBudget {
   needsPercentage: number
   wantsPercentage: number
   savingsPercentage: number
-  needsItems?: any[]
-  wantsItems?: any[]
-  savingsItems?: any[]
+  needsItems?: BudgetItem[]
+  wantsItems?: BudgetItem[]
+  savingsItems?: BudgetItem[]
 }
 
 const MONTHS = [
@@ -43,6 +52,7 @@ export default function BudgetDashboard() {
   // Generate year options: current year + 4 future years
   const yearOptions = Array.from({ length: 5 }, (_, i) => currentYear + i)
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (userId) {
       fetchBudgets()
@@ -73,9 +83,9 @@ export default function BudgetDashboard() {
       console.log('Available budgets:', budgets.map(b => ({ month: b.month, year: b.year })))
       console.log('Previous budgets found:', previousBudgets.map(b => ({ month: b.month, hasNeeds: b.needsItems?.length, hasWants: b.wantsItems?.length, hasSavings: b.savingsItems?.length })))
       
-      let needsItems: any[] = []
-      let wantsItems: any[] = []
-      let savingsItems: any[] = []
+      let needsItems: BudgetItem[] = []
+      let wantsItems: BudgetItem[] = []
+      let savingsItems: BudgetItem[] = []
       let income = 0
       let needsPercentage = 50
       let wantsPercentage = 30
@@ -118,9 +128,9 @@ export default function BudgetDashboard() {
       }
       
       // Calculate actual totals from the items
-      const actualNeeds = needsItems.reduce((sum: number, item: any) => sum + (item.amount || 0), 0)
-      const actualWants = wantsItems.reduce((sum: number, item: any) => sum + (item.amount || 0), 0)
-      const actualSavings = savingsItems.reduce((sum: number, item: any) => sum + (item.amount || 0), 0)
+      const actualNeeds = needsItems.reduce((sum: number, item: BudgetItem) => sum + (item.amount || 0), 0)
+      const actualWants = wantsItems.reduce((sum: number, item: BudgetItem) => sum + (item.amount || 0), 0)
+      const actualSavings = savingsItems.reduce((sum: number, item: BudgetItem) => sum + (item.amount || 0), 0)
       
       console.log('Creating budget for month', month, 'with:', {
         needsItems: needsItems.length,

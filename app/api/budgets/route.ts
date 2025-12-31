@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
 
     await dbConnect()
     
-    const query: any = { userId: clerkUserId }
+    const query: { userId: string; year?: number; month?: number } = { userId: clerkUserId }
     if (year) query.year = parseInt(year)
     if (month) query.month = parseInt(month)
 

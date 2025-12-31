@@ -124,7 +124,7 @@ export default function TemplatesPage() {
     setIsCreating(true)
   }
 
-  const updateTemplateField = (field: keyof BudgetTemplate, value: any) => {
+  const updateTemplateField = (field: keyof BudgetTemplate, value: string | number | BudgetItem[]) => {
     if (!editingTemplate) return
     setEditingTemplate({ ...editingTemplate, [field]: value })
   }
@@ -133,7 +133,7 @@ export default function TemplatesPage() {
     category: 'needsItems' | 'wantsItems' | 'savingsItems',
     index: number,
     field: keyof BudgetItem,
-    value: any
+    value: string | number | boolean
   ) => {
     if (!editingTemplate) return
     const items = [...editingTemplate[category]]

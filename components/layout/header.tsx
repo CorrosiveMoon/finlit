@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Calculator, DollarSign, Menu, Building2 } from 'lucide-react'
+import { DollarSign, Menu, Building2 } from 'lucide-react'
 import { SignInButton, SignUpButton, UserButton, SignedIn, SignedOut } from '@clerk/nextjs'
 import { Button } from '@/components/ui/button'
 

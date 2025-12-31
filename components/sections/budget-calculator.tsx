@@ -4,10 +4,9 @@ import { useState } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import BudgetBreakdown from '@/components/calculators/budget-breakdown'
 import BudgetTemplate from '@/components/calculators/budget-template'
-import { useCurrency, CurrencySelect, CURRENCIES, type CurrencyCode } from '@/components/ui/currency-select'
+import { useCurrency, CurrencySelect, CURRENCIES } from '@/components/ui/currency-select'
 
 export default function BudgetCalculator() {
   const [income, setIncome] = useState('')

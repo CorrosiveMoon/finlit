@@ -61,7 +61,7 @@ export default function RealEstatePage() {
             a way to invest in premium properties starting from just 5% ownership.
           </p>
           <Badge variant="outline" className="text-sm px-4 py-2 border-teal-300 text-teal-700">
-            Learn • Don't Invest Without Research
+            Learn • Don&apos;t Invest Without Research
           </Badge>
         </div>
 
@@ -182,7 +182,7 @@ export default function RealEstatePage() {
               <CardContent className="space-y-2">
                 <p className="text-slate-700 font-semibold">Watch Investment Grow</p>
                 <ul className="text-sm text-slate-600 space-y-1">
-                  <li>• You're now an investor</li>
+                  <li>• You&apos;re now an investor</li>
                   <li>• Nawy manages returns</li>
                   <li>• Track your investment</li>
                 </ul>
@@ -358,7 +358,7 @@ export default function RealEstatePage() {
                 </div>
                 <h4 className="font-semibold text-slate-900 mb-2">Exit Options</h4>
                 <p className="text-sm text-slate-600">
-                  Sell your shares to other investors through Nawy's platform, or wait until 
+                  Sell your shares to other investors through Nawy&apos;s platform, or wait until 
                   property delivery to exit with full capital appreciation.
                 </p>
               </div>
