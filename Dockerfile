@@ -7,9 +7,9 @@ WORKDIR /app
 # Install dependencies only when needed
 COPY package.json package-lock.json* ./
 RUN if [ -f package-lock.json ]; then \
-      npm ci --omit=dev; \
+      npm ci --omit=dev --legacy-peer-deps; \
     else \
-      npm install --production; \
+      npm install --production --legacy-peer-deps; \
     fi && \
     npm cache clean --force
 
@@ -23,9 +23,9 @@ COPY package.json package-lock.json* ./
 
 # Install all dependencies (including dev) for build
 RUN if [ -f package-lock.json ]; then \
-      npm ci; \
+      npm ci --legacy-peer-deps; \
     else \
-      npm install; \
+      npm install --legacy-peer-deps; \
     fi
 
 # Copy source files
