@@ -2,20 +2,17 @@
 node_modules
 npm-debug.log
 yarn-error.log
-package-lock.json
 yarn.lock
 pnpm-lock.yaml
 
 # Next.js
 .next
 out
-build
-dist
 
-# Environment files
+# Environment files (never copy real env files to image)
 .env
-.env.*
-!.env.example
+.env.local
+.env.*.local
 
 # Git
 .git
@@ -37,20 +34,22 @@ ehthumbs.db
 # Testing
 coverage
 .nyc_output
-*.test.ts
-*.spec.ts
 
-# Documentation
+# Documentation (keep README)
 *.md
 !README.md
 
-# Docker
+# Docker files (don't need these in the image)
 Dockerfile
 docker-compose.yml
 .dockerignore
 
-# Misc
-.eslintrc.json
-.prettierrc
-tsconfig.json
-next-env.d.ts
+# Personal files
+"Financial Literacy notes.txt"
+*.PNG
+budget.PNG
+changesmade.txt
+test-mongodb.js
+*.jpg
+*.jpeg
+*.gif
