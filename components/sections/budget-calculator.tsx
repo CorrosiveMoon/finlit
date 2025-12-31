@@ -7,28 +7,15 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import BudgetBreakdown from '@/components/calculators/budget-breakdown'
 import BudgetTemplate from '@/components/calculators/budget-template'
-
-const currencies = [
-  { code: 'EGP', symbol: 'E£', name: 'Egyptian Pound' },
-  { code: 'USD', symbol: '$', name: 'US Dollar' },
-  { code: 'EUR', symbol: '€', name: 'Euro' },
-  { code: 'GBP', symbol: '£', name: 'British Pound' },
-  { code: 'SAR', symbol: 'SR', name: 'Saudi Riyal' },
-  { code: 'AED', symbol: 'AED', name: 'UAE Dirham' },
-  { code: 'JPY', symbol: '¥', name: 'Japanese Yen' },
-  { code: 'CAD', symbol: 'C$', name: 'Canadian Dollar' },
-  { code: 'AUD', symbol: 'A$', name: 'Australian Dollar' },
-  { code: 'CHF', symbol: 'CHF', name: 'Swiss Franc' },
-  { code: 'CNY', symbol: '¥', name: 'Chinese Yuan' },
-]
+import { useCurrency, CurrencySelect, CURRENCIES, type CurrencyCode } from '@/components/ui/currency-select'
 
 export default function BudgetCalculator() {
   const [income, setIncome] = useState('')
   const [calculated, setCalculated] = useState(false)
-  const [selectedCurrency, setSelectedCurrency] = useState(currencies[0])
-  const [showCurrencies, setShowCurrencies] = useState(false)
+  const { currency, setCurrency } = useCurrency()
   const [showTemplate, setShowTemplate] = useState(false)
   
+  const selectedCurrency = CURRENCIES.find(c => c.code === currency) || CURRENCIES[0]
   const monthlyIncome = parseFloat(income) || 0
   const needs = monthlyIncome * 0.5
   const wants = monthlyIncome * 0.3
@@ -38,11 +25,6 @@ export default function BudgetCalculator() {
     if (monthlyIncome > 0) {
       setCalculated(true)
     }
-  }
-  
-  const handleCurrencySelect = (currency: typeof currencies[0]) => {
-    setSelectedCurrency(currency)
-    setShowCurrencies(false)
   }
 
   return (
@@ -68,29 +50,8 @@ export default function BudgetCalculator() {
             <CardContent>
               <div className="flex flex-col space-y-4">
                 <div className="flex flex-col sm:flex-row gap-4">
-                  <div className="relative">
-                    <Button
-                      variant="outline"
-                      onClick={() => setShowCurrencies(!showCurrencies)}
-                      className="w-full sm:w-32 justify-between"
-                    >
-                      {selectedCurrency.symbol} {selectedCurrency.code}
-                      <span className="ml-2">▼</span>
-                    </Button>
-                    {showCurrencies && (
-                      <div className="absolute top-full mt-1 w-full sm:w-64 bg-white border rounded-md shadow-lg z-10 max-h-48 overflow-y-auto">
-                        {currencies.map((currency) => (
-                          <button
-                            key={currency.code}
-                            onClick={() => handleCurrencySelect(currency)}
-                            className="w-full px-3 py-2 text-left hover:bg-slate-50 flex items-center justify-between"
-                          >
-                            <span>{currency.symbol} {currency.code}</span>
-                            <span className="text-sm text-slate-500">{currency.name}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
+                  <div className="w-full sm:w-64">
+                    <CurrencySelect value={currency} onChange={setCurrency} className="w-full" />
                   </div>
                   <div className="flex-1">
                     <Input
