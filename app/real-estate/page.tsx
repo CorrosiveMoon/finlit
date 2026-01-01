@@ -1,34 +1,153 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Building2, TrendingUp, DollarSign, Shield, Calendar, CheckCircle, AlertCircle, Home, PieChart, Users } from 'lucide-react'
+import { Building2, TrendingUp, DollarSign, Shield, Calendar, CheckCircle, AlertCircle, Home, PieChart, Users, Info } from 'lucide-react'
 import Link from 'next/link'
 
 export default function RealEstatePage() {
-  const [propertyValue, setPropertyValue] = useState('3000000')
-  const [ownershipPercent, setOwnershipPercent] = useState('5')
-  const [installmentMonths, setInstallmentMonths] = useState('18')
+  // Calculator state - simplified
+  const [sharePrice, setSharePrice] = useState('10212')
+  const [numShares, setNumShares] = useState('1')
+  const [downPayment, setDownPayment] = useState('10212')
+  const [monthlyInstallment, setMonthlyInstallment] = useState('10212')
+  const [installmentMonths, setInstallmentMonths] = useState('24')
+  const [bulkPayment1, setBulkPayment1] = useState('19118')
+  const [bulkPayment2, setBulkPayment2] = useState('0')
+  const [targetROI] = useState('80')
 
-  const calcPropertyValue = parseFloat(propertyValue) || 0
-  const calcOwnership = parseFloat(ownershipPercent) || 0
-  const calcMonths = parseFloat(installmentMonths) || 0
+  // Calculations
+  const calculations = useMemo(() => {
+    const share = parseFloat(sharePrice) || 0
+    const shares = parseFloat(numShares) || 0
+    const down = parseFloat(downPayment) || 0
+    const monthly = parseFloat(monthlyInstallment) || 0
+    const months = parseInt(installmentMonths) || 0
+    const bulk1 = parseFloat(bulkPayment1) || 0
+    const bulk2 = parseFloat(bulkPayment2) || 0
+    const roi = parseFloat(targetROI) || 80
 
-  const yourInvestment = calcPropertyValue * (calcOwnership / 100)
-  const downPayment = yourInvestment * 0.1
-  const monthlyInstallment = calcMonths > 0 ? (yourInvestment - downPayment) / calcMonths : 0
-  
-  // Example appreciation (20% increase)
-  const futureValue = calcPropertyValue * 1.2
-  const yourFutureShare = futureValue * (calcOwnership / 100)
-  const capitalGain = yourFutureShare - yourInvestment
+    const totalFromInstallments = monthly * months
+    const totalFromBulkPayments = bulk1 + bulk2
+    const totalInvestment = down + totalFromInstallments + totalFromBulkPayments
 
-  // Example rental income (assuming 10k EGP/month rent)
-  const monthlyRent = calcPropertyValue * 0.0033 // ~0.33% of property value
-  const yourRentalIncome = monthlyRent * (calcOwnership / 100)
+    // Calculate payment timeline
+    const timeline: { month: number; payment: number; cumulative: number; type: string }[] = []
+    
+    // Down payment at month 0
+    timeline.push({ month: 0, payment: down, cumulative: down, type: 'Down Payment' })
+
+    // Add monthly installments
+    for (let month = 1; month <= months; month++) {
+      const prevCumulative = timeline[timeline.length - 1]?.cumulative || 0
+      timeline.push({
+        month,
+        payment: monthly,
+        cumulative: prevCumulative + monthly,
+        type: 'Monthly Installment'
+      })
+    }
+
+    // Add bulk payments (at mid-point and end if both exist)
+    if (bulk1 > 0) {
+      const bulk1Month = Math.floor(months * 0.6) || 12
+      const existing = timeline.find(t => t.month === bulk1Month)
+      if (existing) {
+        existing.payment += bulk1
+        existing.type = 'Installment + Bulk'
+        // Recalculate cumulative from this point
+        for (let i = timeline.findIndex(t => t.month === bulk1Month); i < timeline.length; i++) {
+          if (i === timeline.findIndex(t => t.month === bulk1Month)) {
+            timeline[i].cumulative = (timeline[i - 1]?.cumulative || 0) + timeline[i].payment
+          } else {
+            timeline[i].cumulative = timeline[i - 1].cumulative + timeline[i].payment
+          }
+        }
+      } else {
+        const prevCumulative = timeline.filter(t => t.month < bulk1Month).reduce((max, t) => Math.max(max, t.cumulative), 0)
+        timeline.push({
+          month: bulk1Month,
+          payment: bulk1,
+          cumulative: prevCumulative + bulk1,
+          type: 'Bulk Payment'
+        })
+        timeline.sort((a, b) => a.month - b.month)
+      }
+    }
+
+    if (bulk2 > 0) {
+      const bulk2Month = months + 6
+      timeline.push({
+        month: bulk2Month,
+        payment: bulk2,
+        cumulative: timeline[timeline.length - 1].cumulative + bulk2,
+        type: 'Bulk Payment'
+      })
+    }
+
+    // Recalculate cumulative properly
+    timeline.sort((a, b) => a.month - b.month)
+    let cumulative = 0
+    timeline.forEach(t => {
+      cumulative += t.payment
+      t.cumulative = cumulative
+    })
+
+    // Calculate exit scenarios (80% ROI)
+    const exitScenarios: {
+      year: number
+      investedTillDate: number
+      targetResalePrice: number
+      cashDownPayment: number
+      remainingInstallments: number
+      returnPerShare: number
+      grossProfit: number
+      roiPercent: number
+    }[] = []
+
+    for (let year = 1; year <= 5; year++) {
+      const monthsElapsed = year * 12
+      const investedTillDate = timeline
+        .filter(t => t.month <= monthsElapsed)
+        .reduce((sum, t) => sum + t.payment, 0)
+
+      // Calculate target resale price for ROI
+      const targetResalePrice = investedTillDate * (1 + roi / 100)
+      const returnPerShare = targetResalePrice
+      const grossProfit = returnPerShare - investedTillDate
+      const roiPercent = investedTillDate > 0 ? (grossProfit / investedTillDate) * 100 : 0
+
+      // Cash you get back
+      const cashDownPayment = targetResalePrice
+      
+      // Remaining installments (what you won't pay)
+      const remainingPayments = timeline
+        .filter(t => t.month > monthsElapsed)
+        .reduce((sum, t) => sum + t.payment, 0)
+
+      exitScenarios.push({
+        year,
+        investedTillDate,
+        targetResalePrice,
+        cashDownPayment,
+        remainingInstallments: remainingPayments,
+        returnPerShare,
+        grossProfit,
+        roiPercent
+      })
+    }
+
+    return {
+      totalInvestment,
+      timeline,
+      exitScenarios,
+      totalFromInstallments,
+      totalFromBulkPayments
+    }
+  }, [sharePrice, numShares, downPayment, monthlyInstallment, installmentMonths, bulkPayment1, bulkPayment2, targetROI])
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -54,403 +173,404 @@ export default function RealEstatePage() {
             </div>
           </div>
           <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4">
-            Understanding Real Estate Investing
+            Nawy Fractional Real Estate Calculator
           </h1>
           <p className="text-xl text-slate-600 max-w-3xl mx-auto mb-6">
-            Learn how fractional real estate investment works with platforms like Nawy Shares - 
-            a way to invest in premium properties starting from just 5% ownership.
+            Understand how Nawy&apos;s fractional property investment works - buy shares in premium properties 
+            with flexible payment plans and target 80% ROI exit strategy.
           </p>
           <Badge variant="outline" className="text-sm px-4 py-2 border-teal-300 text-teal-700">
             Learn • Don&apos;t Invest Without Research
           </Badge>
         </div>
 
-        {/* What is Nawy Shares */}
+        {/* How It Works Section */}
         <Card className="mb-12">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-2xl">
-              <Home className="h-6 w-6 text-teal-600" />
-              What is Nawy Shares?
+              <Info className="h-6 w-6 text-teal-600" />
+              How Nawy Fractional Investment Works
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-slate-700 leading-relaxed">
-              Nawy Shares is a fractional real estate investment platform targeting the Egyptian market. 
-              Instead of buying an entire property (which may cost millions), you can invest in just a portion 
-              of a property - starting from as little as 5% ownership.
-            </p>
-            <div className="grid md:grid-cols-3 gap-4 mt-6">
-              <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-                <div className="flex items-center gap-2 mb-2">
-                  <PieChart className="h-5 w-5 text-orange-600" />
-                  <h4 className="font-semibold text-slate-900">Fractional Ownership</h4>
-                </div>
-                <p className="text-sm text-slate-600">Own a percentage of premium properties instead of the entire unit</p>
+          <CardContent className="space-y-6">
+            <div className="grid md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg text-slate-900">📊 Share-Based Investment</h3>
+                <p className="text-slate-700">
+                  Instead of buying an entire property, you purchase <strong>shares</strong> in premium real estate. 
+                  Each share has a fixed price (e.g., EGP 10,212 per share). You can buy as many shares as you want, 
+                  making real estate accessible without needing millions.
+                </p>
               </div>
-              <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-                <div className="flex items-center gap-2 mb-2">
-                  <DollarSign className="h-5 w-5 text-orange-600" />
-                  <h4 className="font-semibold text-slate-900">Lower Entry Barrier</h4>
-                </div>
-                <p className="text-sm text-slate-600">Start investing with significantly less capital than traditional real estate</p>
+
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg text-slate-900">💳 Flexible Payment Plans</h3>
+                <p className="text-slate-700">
+                  Nawy offers flexible payment structures: a <strong>down payment</strong>, followed by 
+                  <strong> monthly installments</strong> (which may have different phases), and sometimes 
+                  <strong> bulk payments</strong> at specific dates. This spreads your investment over time.
+                </p>
               </div>
-              <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-                <div className="flex items-center gap-2 mb-2">
-                  <Users className="h-5 w-5 text-orange-600" />
-                  <h4 className="font-semibold text-slate-900">Diversification</h4>
-                </div>
-                <p className="text-sm text-slate-600">Spread your investment across multiple properties and locations</p>
+
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg text-slate-900">🎯 80% ROI Exit Strategy</h3>
+                <p className="text-slate-700">
+                  Nawy aims to sell the property when it reaches <strong>80% ROI</strong> on your total invested amount, 
+                  or at <strong>property delivery</strong> (whichever comes first). This means the earlier the property 
+                  exits, the less you&apos;ve paid in, but you still get an 80% return on what you&apos;ve invested.
+                </p>
               </div>
+
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg text-slate-900">💰 No More Payments After Exit</h3>
+                <p className="text-slate-700">
+                  If the property exits early (e.g., in year 2), you <strong>stop paying</strong> the remaining installments. 
+                  You receive your cash return, and the remaining payment obligations are canceled. The earlier the exit, 
+                  the less capital you tie up.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
+              <h4 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
+                <Info className="h-5 w-5" />
+                Key Concept: Time vs. Return Trade-off
+              </h4>
+              <p className="text-sm text-blue-800">
+                <strong>Earlier exit (e.g., Year 1-2):</strong> Lower total invested, 80% ROI on smaller amount, quicker returns.
+                <br />
+                <strong>Later exit (e.g., Year 4-5):</strong> More capital invested over time, 80% ROI on larger amount, higher absolute profit.
+              </p>
             </div>
           </CardContent>
         </Card>
-
-        {/* How It Works - 4 Steps */}
-        <div className="mb-12">
-          <h2 className="text-3xl font-bold text-slate-900 mb-8 text-center">How Nawy Shares Works</h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {/* Step 1 */}
-            <Card className="border-t-4 border-t-teal-500">
-              <CardHeader>
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-orange-100 text-orange-600 font-bold">
-                    1
-                  </div>
-                  <CardTitle className="text-lg">Choose</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <p className="text-slate-700 font-semibold">Choose Investment</p>
-                <ul className="text-sm text-slate-600 space-y-1">
-                  <li>• Browse premium projects</li>
-                  <li>• Review unit details</li>
-                  <li>• Select ownership % (5%+)</li>
-                </ul>
-              </CardContent>
-            </Card>
-
-            {/* Step 2 */}
-            <Card className="border-t-4 border-t-teal-500">
-              <CardHeader>
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-orange-100 text-orange-600 font-bold">
-                    2
-                  </div>
-                  <CardTitle className="text-lg">Checkout</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <p className="text-slate-700 font-semibold">Pay Down Payment</p>
-                <ul className="text-sm text-slate-600 space-y-1">
-                  <li>• Upload national ID</li>
-                  <li>• Add your address</li>
-                  <li>• Pay online via card</li>
-                </ul>
-              </CardContent>
-            </Card>
-
-            {/* Step 3 */}
-            <Card className="border-t-4 border-t-teal-500">
-              <CardHeader>
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-orange-100 text-orange-600 font-bold">
-                    3
-                  </div>
-                  <CardTitle className="text-lg">Sign</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <p className="text-slate-700 font-semibold">Sign Reservation Form</p>
-                <ul className="text-sm text-slate-600 space-y-1">
-                  <li>• Form delivered by courier</li>
-                  <li>• Sign at your convenience</li>
-                  <li>• Within 1 week delivery</li>
-                </ul>
-              </CardContent>
-            </Card>
-
-            {/* Step 4 */}
-            <Card className="border-t-4 border-t-teal-500">
-              <CardHeader>
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-orange-100 text-orange-600 font-bold">
-                    4
-                  </div>
-                  <CardTitle className="text-lg">Grow</CardTitle>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                <p className="text-slate-700 font-semibold">Watch Investment Grow</p>
-                <ul className="text-sm text-slate-600 space-y-1">
-                  <li>• You&apos;re now an investor</li>
-                  <li>• Nawy manages returns</li>
-                  <li>• Track your investment</li>
-                </ul>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
 
         {/* Interactive Calculator */}
         <Card className="mb-12 border-2 border-teal-200">
           <CardHeader className="bg-teal-50">
             <CardTitle className="flex items-center gap-2 text-2xl">
               <DollarSign className="h-6 w-6 text-orange-600" />
-              Investment Calculator
+              Nawy Investment Calculator
             </CardTitle>
-            <p className="text-slate-600 text-sm">Calculate your potential investment and returns</p>
+            <p className="text-slate-600 text-sm">
+              Calculate your approximate investment and projected returns (based on 80% ROI exit strategy)
+            </p>
           </CardHeader>
-          <CardContent className="pt-6">
-            <div className="grid md:grid-cols-3 gap-6 mb-8">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Property Total Value (EGP)
-                </label>
-                <Input
-                  type="number"
-                  value={propertyValue}
-                  onChange={(e) => setPropertyValue(e.target.value)}
-                  placeholder="3000000"
-                  className="text-lg"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Your Ownership %
-                </label>
-                <Input
-                  type="number"
-                  value={ownershipPercent}
-                  onChange={(e) => setOwnershipPercent(e.target.value)}
-                  placeholder="5"
-                  min="5"
-                  max="100"
-                  className="text-lg"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Installment Period (Months)
-                </label>
-                <Input
-                  type="number"
-                  value={installmentMonths}
-                  onChange={(e) => setInstallmentMonths(e.target.value)}
-                  placeholder="18"
-                  min="1"
-                  className="text-lg"
-                />
+          <CardContent className="pt-6 space-y-8">
+            {/* Basic Investment Details */}
+            <div>
+              <h3 className="text-lg font-semibold text-slate-900 mb-4">Your Investment</h3>
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Price Per Share (EGP)
+                  </label>
+                  <Input
+                    type="number"
+                    value={sharePrice}
+                    onChange={(e) => setSharePrice(e.target.value)}
+                    placeholder="10212"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">How much does one share cost?</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Number of Shares
+                  </label>
+                  <Input
+                    type="number"
+                    value={numShares}
+                    onChange={(e) => setNumShares(e.target.value)}
+                    placeholder="1"
+                    min="1"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">How many shares to buy?</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Down Payment (EGP)
+                  </label>
+                  <Input
+                    type="number"
+                    value={downPayment}
+                    onChange={(e) => setDownPayment(e.target.value)}
+                    placeholder="10212"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">Initial payment you make now</p>
+                </div>
               </div>
             </div>
 
-            {/* Results */}
-            <div className="grid md:grid-cols-2 gap-6">
-              {/* Payment Breakdown */}
-              <div className="bg-slate-50 p-6 rounded-lg">
-                <h4 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
-                  <Calendar className="h-5 w-5 text-teal-600" />
-                  Payment Breakdown
-                </h4>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-600">Your Investment:</span>
-                    <span className="font-bold text-lg text-slate-900">
-                      E£{yourInvestment.toLocaleString('en-US', { maximumFractionDigits: 0 })}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center border-t pt-3">
-                    <span className="text-slate-600">Down Payment (10%):</span>
-                    <span className="font-semibold text-orange-600">
-                      E£{downPayment.toLocaleString('en-US', { maximumFractionDigits: 0 })}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-600">Monthly Installment:</span>
-                    <span className="font-semibold text-teal-600">
-                      E£{monthlyInstallment.toLocaleString('en-US', { maximumFractionDigits: 0 })}/month
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center text-sm text-slate-500 border-t pt-2">
-                    <span>Over {installmentMonths} months</span>
-                  </div>
+            {/* Payment Plan */}
+            <div>
+              <h3 className="text-lg font-semibold text-slate-900 mb-4">Payment Plan</h3>
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Monthly Installment (EGP)
+                  </label>
+                  <Input
+                    type="number"
+                    value={monthlyInstallment}
+                    onChange={(e) => setMonthlyInstallment(e.target.value)}
+                    placeholder="10212"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">Amount you pay each month</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Number of Months
+                  </label>
+                  <Input
+                    type="number"
+                    value={installmentMonths}
+                    onChange={(e) => setInstallmentMonths(e.target.value)}
+                    placeholder="24"
+                    min="1"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">How many monthly payments?</p>
                 </div>
               </div>
+            </div>
 
-              {/* Potential Returns */}
-              <div className="bg-green-50 p-6 rounded-lg">
-                <h4 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-orange-600" />
-                  Potential Returns (Example)
-                </h4>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-600">Property appreciates to:</span>
-                    <span className="font-bold text-slate-900">
-                      E£{futureValue.toLocaleString('en-US', { maximumFractionDigits: 0 })}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center border-t pt-3">
-                    <span className="text-slate-600">Your share value:</span>
-                    <span className="font-semibold text-green-600">
-                      E£{yourFutureShare.toLocaleString('en-US', { maximumFractionDigits: 0 })}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-600">Capital Gain:</span>
-                    <span className="font-bold text-lg text-green-700">
-                      +E£{capitalGain.toLocaleString('en-US', { maximumFractionDigits: 0 })}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center border-t pt-3">
-                    <span className="text-slate-600">Monthly Rental Income:</span>
-                    <span className="font-semibold text-teal-600">
-                      E£{yourRentalIncome.toLocaleString('en-US', { maximumFractionDigits: 0 })}/month
-                    </span>
-                  </div>
+            {/* Bulk Payments - Optional */}
+            <div>
+              <h3 className="text-lg font-semibold text-slate-900 mb-2">
+                Bulk Payments <span className="text-sm font-normal text-slate-500">(Optional)</span>
+              </h3>
+              <p className="text-sm text-slate-600 mb-4">
+                Large one-time payments (if your payment plan includes them, otherwise leave at 0)
+              </p>
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Bulk Payment 1 (EGP)
+                  </label>
+                  <Input
+                    type="number"
+                    value={bulkPayment1}
+                    onChange={(e) => setBulkPayment1(e.target.value)}
+                    placeholder="19118 or 0"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">First large payment (or 0)</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                    Bulk Payment 2 (EGP)
+                  </label>
+                  <Input
+                    type="number"
+                    value={bulkPayment2}
+                    onChange={(e) => setBulkPayment2(e.target.value)}
+                    placeholder="0"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">Second large payment (or 0)</p>
                 </div>
               </div>
+            </div>
+
+            {/* Summary */}
+            <div className="bg-gradient-to-r from-teal-50 to-orange-50 p-6 rounded-lg border-2 border-teal-200">
+              <h3 className="text-lg font-semibold text-slate-900 mb-4">Investment Summary</h3>
+              <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                  <p className="text-sm text-slate-600">Down Payment</p>
+                  <p className="text-xl font-bold text-orange-600">
+                    E£{parseFloat(downPayment || '0').toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-slate-600">Monthly Installments</p>
+                  <p className="text-xl font-bold text-teal-600">
+                    E£{calculations.totalFromInstallments.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                  </p>
+                  <p className="text-xs text-slate-500">
+                    ({installmentMonths} × E£{parseFloat(monthlyInstallment || '0').toLocaleString('en-US', { maximumFractionDigits: 0 })})
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-slate-600">Bulk Payments</p>
+                  <p className="text-xl font-bold text-amber-600">
+                    E£{calculations.totalFromBulkPayments.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                  </p>
+                </div>
+                <div className="bg-white p-4 rounded-lg border-2 border-slate-300">
+                  <p className="text-sm text-slate-600 mb-1">Total (if held to end)</p>
+                  <p className="text-2xl font-bold text-slate-900">
+                    E£{calculations.totalInvestment.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Payment Timeline */}
+        <Card className="mb-12">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-2xl">
+              <Calendar className="h-6 w-6 text-teal-600" />
+              Payment Timeline
+            </CardTitle>
+            <p className="text-slate-600 text-sm">Month-by-month breakdown of your payments</p>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b-2 border-slate-300">
+                    <th className="text-left p-3 font-semibold text-slate-900">Month</th>
+                    <th className="text-left p-3 font-semibold text-slate-900">Payment Type</th>
+                    <th className="text-right p-3 font-semibold text-slate-900">Amount (EGP)</th>
+                    <th className="text-right p-3 font-semibold text-slate-900">Cumulative (EGP)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {calculations.timeline.slice(0, 20).map((item, index) => (
+                    <tr key={index} className="border-b border-slate-200 hover:bg-slate-50">
+                      <td className="p-3 font-medium text-slate-900">
+                        {item.month === 0 ? 'Now' : `Month ${item.month}`}
+                      </td>
+                      <td className="p-3 text-slate-700">{item.type}</td>
+                      <td className="p-3 text-right font-semibold text-orange-600">
+                        E£{item.payment.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                      </td>
+                      <td className="p-3 text-right font-semibold text-teal-600">
+                        E£{item.cumulative.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {calculations.timeline.length > 20 && (
+                <p className="text-sm text-slate-500 mt-3 text-center">
+                  Showing first 20 payments. Total timeline: {calculations.timeline.length} payments
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Exit Scenarios - 80% ROI */}
+        <Card className="mb-12 border-2 border-green-200">
+          <CardHeader className="bg-green-50">
+            <CardTitle className="flex items-center gap-2 text-2xl">
+              <TrendingUp className="h-6 w-6 text-green-600" />
+              Exit Scenarios at {targetROI}% ROI
+            </CardTitle>
+            <p className="text-slate-600 text-sm">
+              Projected returns if property exits at different years (whichever comes first: {targetROI}% ROI or delivery)
+            </p>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b-2 border-green-300 bg-green-50">
+                    <th className="text-left p-3 font-semibold text-slate-900">Exit Year</th>
+                    <th className="text-right p-3 font-semibold text-slate-900">You Invested</th>
+                    <th className="text-right p-3 font-semibold text-slate-900">You Receive</th>
+                    <th className="text-right p-3 font-semibold text-slate-900">Your Profit</th>
+                    <th className="text-right p-3 font-semibold text-slate-900">Payments Saved<br/>(You Won&apos;t Pay)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {calculations.exitScenarios.map((scenario, index) => (
+                    <tr key={index} className="border-b border-slate-200 hover:bg-green-50">
+                      <td className="p-3 font-semibold text-slate-900">Year {scenario.year}</td>
+                      <td className="p-3 text-right text-slate-700">
+                        E£{scenario.investedTillDate.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                      </td>
+                      <td className="p-3 text-right font-bold text-green-700">
+                        E£{scenario.cashDownPayment.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                      </td>
+                      <td className="p-3 text-right font-bold text-green-600">
+                        +E£{scenario.grossProfit.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                        <br />
+                        <span className="text-xs text-slate-600">({scenario.roiPercent.toFixed(0)}% ROI)</span>
+                      </td>
+                      <td className="p-3 text-right text-orange-600 font-semibold">
+                        E£{scenario.remainingInstallments.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
 
             <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <p className="text-sm text-blue-900">
-                <strong>Note:</strong> Returns shown are examples assuming 20% property appreciation and average rental yields. 
-                Actual returns vary based on market conditions, location, and property type. Always do your own research.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* How You Get Returns */}
-        <Card className="mb-12">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-2xl">
-              <TrendingUp className="h-6 w-6 text-teal-600" />
-              How You Get Returns
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid md:grid-cols-3 gap-6">
-              <div className="p-6 bg-green-50 rounded-lg">
-                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-4">
-                  <TrendingUp className="h-6 w-6 text-green-600" />
-                </div>
-                <h4 className="font-semibold text-slate-900 mb-2">Capital Appreciation</h4>
-                <p className="text-sm text-slate-600">
-                  Sell your share when property value increases. If a 3M property grows to 3.6M, 
-                  your 5% share (150k) becomes 180k - a 30k profit.
+              <h4 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
+                <Info className="h-5 w-5" />
+                How to Read This Table
+              </h4>
+              <div className="text-sm text-blue-800 space-y-2">
+                <p>
+                  <strong>You Invested:</strong> How much you&apos;ve paid by that year.
                 </p>
-              </div>
-
-              <div className="p-6 bg-blue-50 rounded-lg">
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-                  <DollarSign className="h-6 w-6 text-blue-600" />
-                </div>
-                <h4 className="font-semibold text-slate-900 mb-2">Rental Income</h4>
-                <p className="text-sm text-slate-600">
-                  Receive your percentage of monthly rent. If Nawy rents the property for 10k/month, 
-                  you get 5% = 500 EGP/month passive income.
+                <p>
+                  <strong>You Receive:</strong> Cash returned when property sells (at {targetROI}% ROI).
                 </p>
-              </div>
-
-              <div className="p-6 bg-orange-50 rounded-lg">
-                <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mb-4">
-                  <Users className="h-6 w-6 text-orange-600" />
-                </div>
-                <h4 className="font-semibold text-slate-900 mb-2">Exit Options</h4>
-                <p className="text-sm text-slate-600">
-                  Sell your shares to other investors through Nawy&apos;s platform, or wait until 
-                  property delivery to exit with full capital appreciation.
+                <p>
+                  <strong>Your Profit:</strong> The gain you make on your investment.
+                </p>
+                <p>
+                  <strong>Payments Saved:</strong> If property exits early, you stop paying the rest - that&apos;s money you keep!
+                </p>
+                <p className="pt-2 border-t border-blue-300 font-semibold">
+                  💡 Example: If it exits in Year 2, you get {targetROI}% profit on what you&apos;ve paid + you avoid paying the remaining years!
                 </p>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Benefits */}
-        <Card className="mb-12">
+        {/* Real Example from Images */}
+        <Card className="mb-12 bg-gradient-to-br from-teal-50 to-orange-50">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-2xl">
-              <CheckCircle className="h-6 w-6 text-teal-600" />
-              Key Benefits of Fractional Real Estate
-            </CardTitle>
+            <CardTitle className="text-2xl">Real Example: 3BR Luxury Apartment</CardTitle>
+            <p className="text-slate-600">Based on actual Nawy property listing</p>
           </CardHeader>
           <CardContent>
-            <div className="grid md:grid-cols-2 gap-4">
-              {[
-                'Real estate exposure without needing millions in capital',
-                'Fractional ownership lowers entry barrier significantly',
-                'Diversify across multiple properties and locations',
-                'Professional management by Nawy handles everything',
-                'Potential for both capital gains and rental income',
-                'Access to premium off-plan projects in prime areas'
-              ].map((benefit, index) => (
-                <div key={index} className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
-                  <CheckCircle className="h-5 w-5 text-teal-600 flex-shrink-0 mt-0.5" />
-                  <p className="text-slate-700">{benefit}</p>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Real Example Scenario */}
-        <Card className="mb-12 bg-gradient-to-br from-teal-50 to-orange-50 border-2 border-teal-200">
-          <CardHeader>
-            <CardTitle className="text-2xl">Real Example Scenario</CardTitle>
-            <p className="text-slate-600">See how a typical investment might work</p>
-          </CardHeader>
-          <CardContent>
-            <div className="bg-white p-6 rounded-lg space-y-4">
+            <div className="bg-white rounded-lg p-6 space-y-6">
               <div className="grid md:grid-cols-2 gap-6">
                 <div>
-                  <h4 className="font-semibold text-slate-900 mb-3">The Property</h4>
-                  <ul className="space-y-2 text-slate-700">
-                    <li><strong>Location:</strong> Off-plan apartment in New Cairo</li>
-                    <li><strong>Total Value:</strong> E£3,000,000</li>
-                    <li><strong>Your Share:</strong> 5% ownership</li>
-                    <li><strong>Your Investment:</strong> E£150,000</li>
+                  <h4 className="font-semibold text-slate-900 mb-3">Property Details</h4>
+                  <ul className="space-y-2 text-sm text-slate-700">
+                    <li><strong>Location:</strong> Modon Ras El Hekma</li>
+                    <li><strong>Type:</strong> 3 Bedroom Luxury Apartment</li>
+                    <li><strong>Property Value:</strong> EGP 47,466,078</li>
+                    <li><strong>Unit Price per Share:</strong> EGP 43,150,974</li>
+                    <li><strong>Shares Available:</strong> 15 shares</li>
                   </ul>
                 </div>
                 <div>
-                  <h4 className="font-semibold text-slate-900 mb-3">Payment Structure</h4>
-                  <ul className="space-y-2 text-slate-700">
-                    <li><strong>Down Payment:</strong> E£15,000 (10% upfront)</li>
-                    <li><strong>Installments:</strong> E£7,500/month</li>
-                    <li><strong>Duration:</strong> 18 months</li>
-                    <li><strong>Total Paid:</strong> E£150,000</li>
+                  <h4 className="font-semibold text-slate-900 mb-3">Investment Structure</h4>
+                  <ul className="space-y-2 text-sm text-slate-700">
+                    <li><strong>Price per Share:</strong> EGP 10,212</li>
+                    <li><strong>Down Payment:</strong> EGP 10,212</li>
+                    <li><strong>Monthly (Jan-Sep 2026):</strong> EGP 10,212</li>
+                    <li><strong>Monthly (Starting 2027):</strong> EGP 4,302</li>
+                    <li><strong>Bulk Payments:</strong> EGP 19,118 (Sep 2027 & 2028)</li>
                   </ul>
                 </div>
               </div>
 
-              <div className="border-t pt-4 mt-4">
-                <h4 className="font-semibold text-slate-900 mb-3">Your Process</h4>
-                <ol className="space-y-2 text-slate-700">
-                  <li className="flex gap-2">
-                    <span className="font-semibold text-orange-600">1.</span>
-                    <span>Select the unit and 5% ownership on the platform</span>
-                  </li>
-                  <li className="flex gap-2">
-                    <span className="font-semibold text-orange-600">2.</span>
-                    <span>Pay E£15,000 down payment online</span>
-                  </li>
-                  <li className="flex gap-2">
-                    <span className="font-semibold text-orange-600">3.</span>
-                    <span>Sign the reservation form when delivered</span>
-                  </li>
-                  <li className="flex gap-2">
-                    <span className="font-semibold text-orange-600">4.</span>
-                    <span>Pay E£7,500 monthly installments for 18 months</span>
-                  </li>
-                </ol>
-              </div>
-
-              <div className="bg-green-50 p-4 rounded-lg border border-green-200 mt-4">
-                <h4 className="font-semibold text-green-900 mb-2">Potential Outcome (Example)</h4>
-                <p className="text-sm text-green-800">
-                  If property value increases from E£3M to E£3.6M, your 5% share grows from E£150k to E£180k 
-                  = <strong>E£30,000 profit</strong>. Plus, if property generates E£10k/month rent, 
-                  you receive <strong>E£500/month passive income</strong>.
-                </p>
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                <h4 className="font-semibold text-green-900 mb-3">Example Exit Scenario (Year 1)</h4>
+                <div className="grid md:grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <p className="text-green-700">Invested Till Date</p>
+                    <p className="text-xl font-bold text-slate-900">EGP 111,821</p>
+                  </div>
+                  <div>
+                    <p className="text-green-700">Return Per Share</p>
+                    <p className="text-xl font-bold text-green-600">EGP 201,279</p>
+                  </div>
+                  <div>
+                    <p className="text-green-700">Gross Profit</p>
+                    <p className="text-xl font-bold text-green-700">+EGP 89,457</p>
+                  </div>
+                </div>
               </div>
             </div>
           </CardContent>
@@ -469,29 +589,36 @@ export default function RealEstatePage() {
               <div className="p-4 bg-slate-50 rounded-lg">
                 <h4 className="font-semibold text-slate-900 mb-2">⚠️ Market Risk</h4>
                 <p className="text-sm text-slate-600">
-                  Real estate values can go down as well as up. Property appreciation is not guaranteed, 
-                  especially in volatile markets or economic downturns.
+                  Real estate values can fluctuate. The 80% ROI target is not guaranteed and depends on market conditions, 
+                  property appreciation, and economic factors. Property values can also decrease.
                 </p>
               </div>
               <div className="p-4 bg-slate-50 rounded-lg">
-                <h4 className="font-semibold text-slate-900 mb-2">⏰ Liquidity</h4>
+                <h4 className="font-semibold text-slate-900 mb-2">⏰ Liquidity & Exit Timing</h4>
                 <p className="text-sm text-slate-600">
-                  Unlike stocks, real estate is not easily sold. You may need to wait for property completion 
-                  or find another investor willing to buy your share.
+                  You cannot predict exactly when the property will exit. It could be earlier or later than expected. 
+                  Unlike stocks, you cannot easily sell your shares at will - you must wait for Nawy&apos;s exit strategy or find a buyer.
                 </p>
               </div>
               <div className="p-4 bg-slate-50 rounded-lg">
-                <h4 className="font-semibold text-slate-900 mb-2">🏗️ Construction Risk</h4>
+                <h4 className="font-semibold text-slate-900 mb-2">💰 Payment Commitment</h4>
                 <p className="text-sm text-slate-600">
-                  Off-plan properties carry completion risk. Delays can happen, though reputable developers 
-                  typically deliver on commitments.
+                  You are committing to a payment plan. Make sure you can afford the monthly installments and bulk payments. 
+                  Missing payments could result in penalties or loss of your investment.
                 </p>
               </div>
               <div className="p-4 bg-slate-50 rounded-lg">
-                <h4 className="font-semibold text-slate-900 mb-2">💰 Do Your Research</h4>
+                <h4 className="font-semibold text-slate-900 mb-2">🏗️ Construction & Delivery Risk</h4>
                 <p className="text-sm text-slate-600">
-                  Always research the developer, location, market trends, and platform thoroughly. 
-                  Diversify your investments and never invest more than you can afford to lose.
+                  Off-plan properties carry completion risk. Delays can happen, and in rare cases, projects may not complete as planned. 
+                  Always research the developer&apos;s track record.
+                </p>
+              </div>
+              <div className="p-4 bg-slate-50 rounded-lg">
+                <h4 className="font-semibold text-slate-900 mb-2">📚 Do Your Research</h4>
+                <p className="text-sm text-slate-600">
+                  This calculator is educational only. Always verify all numbers with Nawy directly, read all contracts carefully, 
+                  understand all fees, and consult with financial advisors before investing.
                 </p>
               </div>
             </div>
@@ -501,10 +628,10 @@ export default function RealEstatePage() {
         {/* Call to Action - Educational */}
         <Card className="bg-slate-900 text-white">
           <CardContent className="py-12 text-center">
-            <h3 className="text-3xl font-bold mb-4">Ready to Learn More About Budgeting?</h3>
+            <h3 className="text-3xl font-bold mb-4">Ready to Build Your Financial Foundation?</h3>
             <p className="text-slate-300 mb-6 max-w-2xl mx-auto">
-              Before investing in anything, make sure you have a solid budget and emergency fund. 
-              Start building your financial foundation today.
+              Before investing in real estate or any asset, make sure you have a solid budget, emergency fund, and clear financial goals. 
+              Start building your financial literacy today.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link href="/#calculator">
@@ -538,7 +665,7 @@ export default function RealEstatePage() {
                 financial advice or an endorsement to invest.
               </p>
               <p className="font-semibold">
-                Always conduct your own research and consult with licensed financial advisors before making any investment decisions.
+                Always conduct your own research, verify all information directly with Nawy, and consult with licensed financial advisors before making any investment decisions.
               </p>
             </div>
           </div>
