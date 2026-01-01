@@ -15,6 +15,9 @@ services:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-admin}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
       MONGO_INITDB_DATABASE: financial-literacy
+      # App user credentials (needed by init script)
+      MONGO_APP_USER: ${MONGO_APP_USER:-app_user}
+      MONGO_APP_PASSWORD: ${MONGO_APP_PASSWORD}
     
     volumes:
       # Persistent data storage
